@@ -26,11 +26,20 @@ public class ShadowAbstractCursor {
     public int getCount() {
         return rowCount;
     }
-
+    
     @Implementation
     public boolean moveToFirst() {
         setPosition(0);
         return realAbstractCursor.getCount() > 0;
+    }
+    
+    @Implementation
+    public boolean moveToLast() {
+    	if( realAbstractCursor.getCount() == 0 ) {
+    		return false;
+    	}
+    	setPosition( realAbstractCursor.getCount() - 1 );
+    	return true;
     }
 
     @Implementation
@@ -63,10 +72,10 @@ public class ShadowAbstractCursor {
         }
     }
 
-
     @Implementation
     public boolean moveToNext() {
-        if (currentRowNumber >= realAbstractCursor.getCount() - 1) {
+        if (currentRowNumber + 1 >= realAbstractCursor.getCount()) {
+            currentRowNumber = realAbstractCursor.getCount();
             return false;
         }
         setPosition(++currentRowNumber);

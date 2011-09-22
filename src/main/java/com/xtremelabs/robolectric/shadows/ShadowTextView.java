@@ -2,6 +2,7 @@ package com.xtremelabs.robolectric.shadows;
 
 import android.content.Context;
 import android.graphics.drawable.Drawable;
+import android.text.method.TransformationMethod;
 import android.text.style.URLSpan;
 import android.text.util.Linkify;
 import android.text.method.MovementMethod;
@@ -35,6 +36,7 @@ public class ShadowTextView extends ShadowView {
     private TextView.OnEditorActionListener onEditorActionListener;
     private int imeOptions = EditorInfo.IME_NULL;
     private int textAppearanceId;
+    private TransformationMethod transformationMethod;
     private int inputType;
 
     @Override
@@ -47,7 +49,7 @@ public class ShadowTextView extends ShadowView {
         applyCompoundDrawablesWithIntrinsicBoundsAttributes();
     }
 
-    @Implementation
+    @Implementation(i18nSafe=false)
     public void setText(CharSequence text) {
         if (text == null) {
             text = "";
@@ -100,7 +102,7 @@ public class ShadowTextView extends ShadowView {
         this.hintText = getResources().getText(resId);
     }
 
-    @Implementation
+    @Implementation(i18nSafe=false)
     public final void setHint(CharSequence hintText) {
         this.hintText = hintText;
     }
@@ -336,6 +338,16 @@ public class ShadowTextView extends ShadowView {
 
     public void triggerEditorAction(int imeAction) {
         onEditorActionListener.onEditorAction((TextView) realView, imeAction, null);
+    }
+
+    @Implementation
+    public void setTransformationMethod(TransformationMethod transformationMethod) {
+        this.transformationMethod = transformationMethod;
+    }
+
+    @Implementation
+    public TransformationMethod getTransformationMethod() {
+        return transformationMethod;
     }
 
     public static class CompoundDrawables {
