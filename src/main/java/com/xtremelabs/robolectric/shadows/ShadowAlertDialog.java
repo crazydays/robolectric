@@ -4,7 +4,9 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.view.View;
+import android.widget.Adapter;
 import android.widget.Button;
+import android.widget.ListAdapter;
 import com.xtremelabs.robolectric.Robolectric;
 import com.xtremelabs.robolectric.internal.Implementation;
 import com.xtremelabs.robolectric.internal.Implements;
@@ -33,6 +35,8 @@ public class ShadowAlertDialog extends ShadowDialog {
     private Button negativeButton;
     private Button neutralButton;
     private View view;
+    private View customTitleView;
+    private Adapter adapter;
 
     /**
      * Non-Android accessor.
@@ -106,6 +110,10 @@ public class ShadowAlertDialog extends ShadowDialog {
         return items;
     }
 
+    public Adapter getAdapter() {
+        return adapter;
+    }
+
     /**
      * Non-Android accessor.
      *
@@ -154,6 +162,15 @@ public class ShadowAlertDialog extends ShadowDialog {
     }
 
     /**
+     * Non-Android accessor.
+     *
+     * @return return the view set with {@link ShadowAlertDialog.ShadowBuilder#setCustomTitle(View)}
+     */
+    public View getCustomTitleView() {
+        return customTitleView;
+    }
+
+    /**
      * Shadows the {@code android.app.AlertDialog.Builder} class.
      */
     @Implements(AlertDialog.Builder.class)
@@ -162,6 +179,7 @@ public class ShadowAlertDialog extends ShadowDialog {
         private AlertDialog.Builder realBuilder;
 
         private CharSequence[] items;
+        private Adapter adapter;
         private DialogInterface.OnClickListener clickListener;
         private DialogInterface.OnCancelListener cancelListener;
         private String title;
@@ -180,6 +198,7 @@ public class ShadowAlertDialog extends ShadowDialog {
         private boolean isSingleItem;
         private int checkedItem;
         private View view;
+        private View customTitleView;
 
         /**
          * just stashes the context for later use
@@ -224,6 +243,16 @@ public class ShadowAlertDialog extends ShadowDialog {
         }
 
         @Implementation(i18nSafe=false)
+        public AlertDialog.Builder setSingleChoiceItems(ListAdapter adapter, int checkedItem, final DialogInterface.OnClickListener listener) {
+            this.isSingleItem = true;
+            this.checkedItem = checkedItem;
+            this.items = null;
+            this.adapter = adapter;
+            this.clickListener = listener;
+            return realBuilder;
+        }
+
+        @Implementation(i18nSafe=false)
         public AlertDialog.Builder setMultiChoiceItems(CharSequence[] items, boolean[] checkedItems, final DialogInterface.OnMultiChoiceClickListener listener) {
             this.isMultiItem = true;
 
@@ -243,6 +272,13 @@ public class ShadowAlertDialog extends ShadowDialog {
         @Implementation(i18nSafe=false)
         public AlertDialog.Builder setTitle(CharSequence title) {
             this.title = title.toString();
+            return realBuilder;
+        }
+
+
+        @Implementation
+        public AlertDialog.Builder setCustomTitle(android.view.View customTitleView) {
+            this.customTitleView = customTitleView;
             return realBuilder;
         }
 
@@ -337,6 +373,7 @@ public class ShadowAlertDialog extends ShadowDialog {
             ShadowAlertDialog latestAlertDialog = shadowOf(realDialog);
             latestAlertDialog.context = context;
             latestAlertDialog.items = items;
+            latestAlertDialog.adapter = adapter;
             latestAlertDialog.setTitle(title);
             latestAlertDialog.message = message;
             latestAlertDialog.clickListener = clickListener;
@@ -351,7 +388,7 @@ public class ShadowAlertDialog extends ShadowDialog {
             latestAlertDialog.negativeButton = createButton(realDialog, AlertDialog.BUTTON_NEGATIVE, negativeText, negativeListener);
             latestAlertDialog.neutralButton = createButton(realDialog, AlertDialog.BUTTON_NEUTRAL, neutralText, neutralListener);
             latestAlertDialog.setCancelable(isCancelable);
-
+            latestAlertDialog.customTitleView = customTitleView;
             return realDialog;
         }
 
@@ -379,7 +416,7 @@ public class ShadowAlertDialog extends ShadowDialog {
             });
             return button;
         }
-        
+
         protected Context getContext() {
         	return context;
         }

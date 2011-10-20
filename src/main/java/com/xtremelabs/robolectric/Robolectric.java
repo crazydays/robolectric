@@ -44,6 +44,7 @@ import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.LayerDrawable;
 import android.graphics.drawable.ShapeDrawable;
+import android.graphics.drawable.StateListDrawable;
 import android.hardware.Camera;
 import android.hardware.SensorManager;
 import android.location.Geocoder;
@@ -58,6 +59,7 @@ import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Parcel;
 import android.os.PowerManager;
@@ -69,6 +71,7 @@ import android.preference.PreferenceActivity;
 import android.preference.PreferenceCategory;
 import android.preference.PreferenceGroup;
 import android.preference.PreferenceScreen;
+import android.telephony.SmsManager;
 import android.telephony.TelephonyManager;
 import android.text.ClipboardManager;
 import android.text.format.DateFormat;
@@ -78,6 +81,7 @@ import android.view.LayoutInflater;
 import android.view.MenuInflater;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
@@ -97,6 +101,7 @@ import android.widget.CursorAdapter;
 import android.widget.ExpandableListView;
 import android.widget.Filter;
 import android.widget.FrameLayout;
+import android.widget.Gallery;
 import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.ListView;
@@ -240,10 +245,12 @@ public class Robolectric {
                 ShadowFilter.class,
                 ShadowFloatMath.class,
                 ShadowFrameLayout.class,
+                ShadowGallery.class,
                 ShadowGeocoder.class,
                 ShadowGeoPoint.class,
                 ShadowGridView.class,
                 ShadowHandler.class,
+                ShadowHandlerThread.class,
                 ShadowHtml.class,
                 ShadowImageView.class,
                 ShadowInputMethodManager.class,
@@ -255,6 +262,7 @@ public class Robolectric {
                 ShadowJsResult.class,
                 ShadowKeyEvent.class,
                 ShadowKeyguardManager.class,
+                ShadowKeyGuardLock.class,
                 ShadowLayerDrawable.class,
                 ShadowLayoutInflater.class,
                 ShadowLayoutParams.class,
@@ -317,6 +325,7 @@ public class Robolectric {
                 ShadowSettings.ShadowSystem.class,
                 ShadowSimpleCursorAdapter.class,
                 ShadowShapeDrawable.class,
+                ShadowSmsManager.class,
                 ShadowSpannableStringBuilder.class,
                 ShadowSyncResult.class,
                 ShadowSyncResult.ShadowSyncStats.class,
@@ -327,6 +336,7 @@ public class Robolectric {
                 ShadowSQLiteStatement.class,
                 ShadowSQLiteQueryBuilder.class,
                 ShadowSslErrorHandler.class,
+                ShadowStateListDrawable.class,
                 ShadowSurfaceView.class,
                 ShadowTabActivity.class,
                 ShadowTabHost.class,
@@ -341,6 +351,7 @@ public class Robolectric {
                 ShadowVideoView.class,
                 ShadowView.class,
                 ShadowViewAnimator.class,
+                ShadowViewConfiguration.class,
                 ShadowViewGroup.class,
                 ShadowViewFlipper.class,
                 ShadowViewStub.class,
@@ -361,6 +372,7 @@ public class Robolectric {
         ShadowMediaStore.reset();
         ShadowLog.reset();
         ShadowContext.clearFilesAndCache();
+        ShadowLooper.resetThreadLoopers();
     }
 
     public static <T> T directlyOn(T shadowedObject) {
@@ -551,6 +563,10 @@ public class Robolectric {
         return (ShadowFrameLayout) shadowOf_(instance);
     }
 
+    public static ShadowGallery shadowOf(Gallery instance) {
+        return (ShadowGallery) shadowOf_(instance);
+    }
+
     public static ShadowGeocoder shadowOf(Geocoder instance) {
         return (ShadowGeocoder) shadowOf_(instance);
     }
@@ -561,6 +577,10 @@ public class Robolectric {
 
     public static ShadowHandler shadowOf(Handler instance) {
         return (ShadowHandler) shadowOf_(instance);
+    }
+
+    public static ShadowHandlerThread shadowOf(HandlerThread instance) {
+        return (ShadowHandlerThread) shadowOf_(instance);
     }
 
     public static ShadowImageView shadowOf(ImageView instance) {
@@ -585,6 +605,10 @@ public class Robolectric {
 
     public static ShadowKeyguardManager shadowOf(KeyguardManager instance) {
         return (ShadowKeyguardManager) shadowOf_(instance);
+    }
+
+    public static ShadowKeyGuardLock shadowOf(KeyguardManager.KeyguardLock instance) {
+        return (ShadowKeyGuardLock) shadowOf_(instance);
     }
 
     public static ShadowLayerDrawable shadowOf(LayerDrawable instance) {
@@ -746,6 +770,10 @@ public class Robolectric {
     public static ShadowSimpleCursorAdapter shadowOf(SimpleCursorAdapter instance) {
         return (ShadowSimpleCursorAdapter) shadowOf_(instance);
     }
+    
+    public static ShadowSmsManager shadowOf(SmsManager instance) {
+    	return (ShadowSmsManager) shadowOf_(instance);
+    }
 
     public static ShadowSQLiteCursor shadowOf(SQLiteCursor other) {
         return (ShadowSQLiteCursor) Robolectric.shadowOf_(other);
@@ -774,6 +802,10 @@ public class Robolectric {
     public static ShadowSslErrorHandler shadowOf(SslErrorHandler instance) {
         return (ShadowSslErrorHandler) shadowOf_(instance);
     }
+    
+    public static ShadowStateListDrawable shadowOf(StateListDrawable instance) {
+    	return (ShadowStateListDrawable) shadowOf_(instance);
+    }
 
     public static ShadowTabHost shadowOf(TabHost instance) {
         return (ShadowTabHost) shadowOf_(instance);
@@ -801,6 +833,10 @@ public class Robolectric {
 
     public static ShadowViewAnimator shadowOf(ViewAnimator instance) {
         return (ShadowViewAnimator) shadowOf_(instance);
+    }
+
+    public static ShadowViewConfiguration shadowOf(ViewConfiguration instance) {
+        return (ShadowViewConfiguration) shadowOf_(instance);
     }
 
     public static ShadowViewFlipper shadowOf(ViewFlipper instance) {
