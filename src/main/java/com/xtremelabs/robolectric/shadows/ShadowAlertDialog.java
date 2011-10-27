@@ -1,10 +1,16 @@
 package com.xtremelabs.robolectric.shadows;
 
+import android.R;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.view.View;
+import android.widget.Adapter;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ListAdapter;
+import android.widget.ListView;
 import com.xtremelabs.robolectric.Robolectric;
 import com.xtremelabs.robolectric.internal.Implementation;
 import com.xtremelabs.robolectric.internal.Implements;
@@ -33,6 +39,9 @@ public class ShadowAlertDialog extends ShadowDialog {
     private Button negativeButton;
     private Button neutralButton;
     private View view;
+    private View customTitleView;
+    private ListAdapter adapter;
+    private ListView listView;
 
     /**
      * Non-Android accessor.
@@ -73,15 +82,7 @@ public class ShadowAlertDialog extends ShadowDialog {
      * @param index the index of the item to click on
      */
     public void clickOnItem(int index) {
-        if (isMultiItem) {
-            checkedItems[index] = !checkedItems[index];
-            multiChoiceClickListener.onClick(realAlertDialog, index, checkedItems[index]);
-        } else {
-            if (isSingleItem) {
-                checkedItemIndex = index;
-            }
-            clickListener.onClick(realAlertDialog, index);
-        }
+        shadowOf(realAlertDialog.getListView()).performItemClick(index);
     }
 
     @Implementation
@@ -97,6 +98,28 @@ public class ShadowAlertDialog extends ShadowDialog {
         throw new RuntimeException("Only positive, negative, or neutral button choices are recognized");
     }
 
+    @Implementation
+    public ListView getListView() {
+        if (listView == null) {
+            listView = new ListView(context);
+            listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                @Override
+                public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                    if (isMultiItem) {
+                        checkedItems[position] = !checkedItems[position];
+                        multiChoiceClickListener.onClick(realAlertDialog, position, checkedItems[position]);
+                    } else {
+                        if (isSingleItem) {
+                            checkedItemIndex = position;
+                        }
+                        clickListener.onClick(realAlertDialog, position);
+                    }
+                }
+            });
+        }
+        return listView;
+    }
+
     /**
      * Non-Android accessor.
      *
@@ -104,6 +127,10 @@ public class ShadowAlertDialog extends ShadowDialog {
      */
     public CharSequence[] getItems() {
         return items;
+    }
+
+    public Adapter getAdapter() {
+        return adapter;
     }
 
     /**
@@ -141,7 +168,34 @@ public class ShadowAlertDialog extends ShadowDialog {
     @Implementation
     public void show() {
         super.show();
+        if (items != null) {
+            adapter = new ArrayAdapter<CharSequence>(context, R.layout.simple_list_item_checked, R.id.text1, items);
+        }
+
+        if (adapter != null) {
+            getListView().setAdapter(adapter);
+        }
+
+
         getShadowApplication().setLatestAlertDialog(this);
+    }
+
+    /**
+     * Non-Android accessor.
+     *
+     * @return return the view set with {@link ShadowAlertDialog.ShadowBuilder#setView(View)}
+     */
+    public View getView() {
+        return view;
+    }
+
+    /**
+     * Non-Android accessor.
+     *
+     * @return return the view set with {@link ShadowAlertDialog.ShadowBuilder#setCustomTitle(View)}
+     */
+    public View getCustomTitleView() {
+        return customTitleView;
     }
 
     /**
@@ -153,6 +207,7 @@ public class ShadowAlertDialog extends ShadowDialog {
         private AlertDialog.Builder realBuilder;
 
         private CharSequence[] items;
+        private ListAdapter adapter;
         private DialogInterface.OnClickListener clickListener;
         private DialogInterface.OnCancelListener cancelListener;
         private String title;
@@ -170,6 +225,8 @@ public class ShadowAlertDialog extends ShadowDialog {
         private boolean isCancelable;
         private boolean isSingleItem;
         private int checkedItem;
+        private View view;
+        private View customTitleView;
 
         /**
          * just stashes the context for later use
@@ -195,7 +252,7 @@ public class ShadowAlertDialog extends ShadowDialog {
             return realBuilder;
         }
 
-        @Implementation
+        @Implementation(i18nSafe=false)
         public AlertDialog.Builder setItems(CharSequence[] items, final DialogInterface.OnClickListener listener) {
             this.isMultiItem = false;
 
@@ -204,7 +261,7 @@ public class ShadowAlertDialog extends ShadowDialog {
             return realBuilder;
         }
 
-        @Implementation
+        @Implementation(i18nSafe=false)
         public AlertDialog.Builder setSingleChoiceItems(CharSequence[] items, int checkedItem, final DialogInterface.OnClickListener listener) {
             this.isSingleItem = true;
             this.checkedItem = checkedItem;
@@ -213,7 +270,17 @@ public class ShadowAlertDialog extends ShadowDialog {
             return realBuilder;
         }
 
-        @Implementation
+        @Implementation(i18nSafe=false)
+        public AlertDialog.Builder setSingleChoiceItems(ListAdapter adapter, int checkedItem, final DialogInterface.OnClickListener listener) {
+            this.isSingleItem = true;
+            this.checkedItem = checkedItem;
+            this.items = null;
+            this.adapter = adapter;
+            this.clickListener = listener;
+            return realBuilder;
+        }
+
+        @Implementation(i18nSafe=false)
         public AlertDialog.Builder setMultiChoiceItems(CharSequence[] items, boolean[] checkedItems, final DialogInterface.OnMultiChoiceClickListener listener) {
             this.isMultiItem = true;
 
@@ -230,9 +297,16 @@ public class ShadowAlertDialog extends ShadowDialog {
             return realBuilder;
         }
 
-        @Implementation
+        @Implementation(i18nSafe=false)
         public AlertDialog.Builder setTitle(CharSequence title) {
             this.title = title.toString();
+            return realBuilder;
+        }
+
+
+        @Implementation
+        public AlertDialog.Builder setCustomTitle(android.view.View customTitleView) {
+            this.customTitleView = customTitleView;
             return realBuilder;
         }
 
@@ -241,7 +315,7 @@ public class ShadowAlertDialog extends ShadowDialog {
             return setTitle(context.getResources().getString(titleId));
         }
 
-        @Implementation
+        @Implementation(i18nSafe=false)
         public AlertDialog.Builder setMessage(CharSequence message) {
             this.message = message.toString();
             return realBuilder;
@@ -259,6 +333,12 @@ public class ShadowAlertDialog extends ShadowDialog {
         }
 
         @Implementation
+        public AlertDialog.Builder setView(View view) {
+            this.view = view;
+            return realBuilder;
+        }
+
+        @Implementation(i18nSafe=false)
         public AlertDialog.Builder setPositiveButton(CharSequence text, final DialogInterface.OnClickListener listener) {
             this.positiveText = text;
             this.positiveListener = listener;
@@ -270,7 +350,7 @@ public class ShadowAlertDialog extends ShadowDialog {
             return setPositiveButton(context.getResources().getText(positiveTextId), listener);
         }
 
-        @Implementation
+        @Implementation(i18nSafe=false)
         public AlertDialog.Builder setNegativeButton(CharSequence text, final DialogInterface.OnClickListener listener) {
             this.negativeText = text;
             this.negativeListener = listener;
@@ -282,7 +362,7 @@ public class ShadowAlertDialog extends ShadowDialog {
             return setNegativeButton(context.getResources().getString(negativeTextId), listener);
         }
 
-        @Implementation
+        @Implementation(i18nSafe=false)
         public AlertDialog.Builder setNeutralButton(CharSequence text, final DialogInterface.OnClickListener listener) {
             this.neutralText = text;
             this.neutralListener = listener;
@@ -291,7 +371,7 @@ public class ShadowAlertDialog extends ShadowDialog {
 
         @Implementation
         public AlertDialog.Builder setNeutralButton(int neutralTextId, final DialogInterface.OnClickListener listener) {
-        	return setNeutralButton(context.getResources().getText(neutralTextId), listener);
+            return setNeutralButton(context.getResources().getText(neutralTextId), listener);
         }
 
 
@@ -321,6 +401,7 @@ public class ShadowAlertDialog extends ShadowDialog {
             ShadowAlertDialog latestAlertDialog = shadowOf(realDialog);
             latestAlertDialog.context = context;
             latestAlertDialog.items = items;
+            latestAlertDialog.adapter = adapter;
             latestAlertDialog.setTitle(title);
             latestAlertDialog.message = message;
             latestAlertDialog.clickListener = clickListener;
@@ -330,11 +411,12 @@ public class ShadowAlertDialog extends ShadowDialog {
             latestAlertDialog.checkedItemIndex = checkedItem;
             latestAlertDialog.multiChoiceClickListener = multiChoiceClickListener;
             latestAlertDialog.checkedItems = checkedItems;
+            latestAlertDialog.setView(view);
             latestAlertDialog.positiveButton = createButton(realDialog, AlertDialog.BUTTON_POSITIVE, positiveText, positiveListener);
             latestAlertDialog.negativeButton = createButton(realDialog, AlertDialog.BUTTON_NEGATIVE, negativeText, negativeListener);
             latestAlertDialog.neutralButton = createButton(realDialog, AlertDialog.BUTTON_NEUTRAL, neutralText, neutralListener);
             latestAlertDialog.setCancelable(isCancelable);
-
+            latestAlertDialog.customTitleView = customTitleView;
             return realDialog;
         }
 
@@ -346,17 +428,25 @@ public class ShadowAlertDialog extends ShadowDialog {
         }
 
         private Button createButton(final DialogInterface dialog, final int which, CharSequence text, final DialogInterface.OnClickListener listener) {
+            if (text == null && listener == null) {
+                return null;
+            }
             Button button = new Button(context);
-            button.setText(text);
+            Robolectric.shadowOf(button).setText(text);		// use shadow to skip i18n-strict checking
             button.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     if (listener != null) {
                         listener.onClick(dialog, which);
                     }
+                    dialog.dismiss();
                 }
             });
             return button;
+        }
+
+        protected Context getContext() {
+            return context;
         }
     }
 }

@@ -36,7 +36,8 @@ import com.xtremelabs.robolectric.res.ResourceLoader;
 @Implements(Resources.class)
 public class ShadowResources {
     private float density = 1.0f;
-
+    Configuration configuration = null;
+    
     static Resources bind(Resources resources, ResourceLoader resourceLoader) {
         ShadowResources shadowResources = shadowOf(resources);
         if (shadowResources.resourceLoader != null) throw new RuntimeException("ResourceLoader already set!");
@@ -64,11 +65,13 @@ public class ShadowResources {
     public int getColor(int id) throws Resources.NotFoundException {
         return resourceLoader.getColorValue(id);
     }
-
+   
     @Implementation
     public Configuration getConfiguration() {
-        Configuration configuration = new Configuration();
-        configuration.setToDefaults();
+    	if (configuration==null) {
+    		configuration = new Configuration();
+        	configuration.setToDefaults();
+    	}
         if (configuration.locale == null) {
             configuration.locale = Locale.getDefault();
         }
@@ -132,42 +135,24 @@ public class ShadowResources {
         return displayMetrics;
     }
 
-    @SuppressWarnings("rawtypes")
 	@Implementation
     public Drawable getDrawable(int drawableResourceId) throws Resources.NotFoundException {
-    	
-    	ShadowContextWrapper shadowApp = Robolectric.shadowOf( Robolectric.application );
-    	Class rClass = shadowApp.getResourceLoader().getLocalRClass();
-    	
-    	// Check to make sure there is actually an R Class, if not
-    	// return just a BitmapDrawable
-    	if( rClass == null ) {
-    		return new BitmapDrawable(BitmapFactory.decodeResource(realResources, drawableResourceId));    		
-    	}
 
-    	// Load the R.anim and R.color Classes for interrogation
-    	Class animClass = null;
-    	Class colorClass = null;
-    	try {
-			animClass  = Class.forName( rClass.getCanonicalName() + "$anim" );
-			colorClass = Class.forName( rClass.getCanonicalName() + "$color" );
-		} catch (ClassNotFoundException e) {
-			return new BitmapDrawable(BitmapFactory.decodeResource(realResources, drawableResourceId));
-		}
+		ResourceLoader resLoader = Robolectric.shadowOf( Robolectric.application ).getResourceLoader();
 		
-		// Try to find the passed in resource ID
-		try {
-			for( Field field : animClass.getDeclaredFields() ) {
-				if( field.getInt( animClass ) == drawableResourceId )  { return new AnimationDrawable(); }
-			}
-			for( Field field : colorClass.getDeclaredFields() ) {
-				if( field.getInt( colorClass ) == drawableResourceId ) { return new ColorDrawable(); }
-			}			
-		} catch ( Exception e ) { } 
+		// Check if this drawable is an XML drawable
+		Drawable xmlDrawable = resLoader.getXmlDrawable( drawableResourceId );
+		if( xmlDrawable != null ) { return xmlDrawable; }
 		
-        return new BitmapDrawable(BitmapFactory.decodeResource(realResources, drawableResourceId));
+		Drawable animDrawable = resLoader.getAnimDrawable( drawableResourceId );
+		if( animDrawable != null ) { return animDrawable; }
+		
+		Drawable colorDrawable = resLoader.getColorDrawable( drawableResourceId );
+		if( colorDrawable != null ) { return colorDrawable; }
+
+		return new BitmapDrawable(BitmapFactory.decodeResource(realResources, drawableResourceId));
     }
-
+    
     @Implementation
     public float getDimension(int id) throws Resources.NotFoundException {
         // todo: get this value from the xml resources and scale it by display metrics [xw 20101011]

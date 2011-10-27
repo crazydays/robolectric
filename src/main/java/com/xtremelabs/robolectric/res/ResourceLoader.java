@@ -1,25 +1,27 @@
 package com.xtremelabs.robolectric.res;
 
-import android.R;
-import android.content.Context;
-import android.preference.PreferenceScreen;
-import android.view.Menu;
-import android.view.View;
-import android.view.ViewGroup;
-import com.xtremelabs.robolectric.util.PropertiesHelper;
+import static com.xtremelabs.robolectric.Robolectric.shadowOf;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileFilter;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
-import static com.xtremelabs.robolectric.Robolectric.shadowOf;
+import android.R;
+import android.content.Context;
+import android.graphics.drawable.AnimationDrawable;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
+import android.preference.PreferenceScreen;
+import android.view.Menu;
+import android.view.View;
+import android.view.ViewGroup;
+
+import com.xtremelabs.robolectric.Robolectric;
+import com.xtremelabs.robolectric.shadows.ShadowContextWrapper;
+import com.xtremelabs.robolectric.util.I18nException;
+import com.xtremelabs.robolectric.util.PropertiesHelper;
 
 public class ResourceLoader {
     private static final FileFilter MENU_DIR_FILE_FILTER = new FileFilter() {
@@ -58,6 +60,7 @@ public class ResourceLoader {
     private final DrawableResourceLoader drawableResourceLoader;
     private final RawResourceLoader rawResourceLoader;
     private boolean isInitialized = false;
+    private boolean strictI18n = false;
 
     // TODO: get these value from the xml resources instead [xw 20101011]
     public final Map<Integer, Integer> dimensions = new HashMap<Integer, Integer>();
@@ -80,7 +83,16 @@ public class ResourceLoader {
 
         this.resourceDir = resourceDir;
     }
-
+    
+    public void setStrictI18n(boolean strict) {
+    	this.strictI18n = strict;
+    	if (viewLoader != null ) 	   { viewLoader.setStrictI18n(strict); }
+    	if (menuLoader != null ) 	   { menuLoader.setStrictI18n(strict); }
+    	if (preferenceLoader != null ) { preferenceLoader.setStrictI18n(strict); }
+    }
+    
+    public boolean getStrictI18n() { return strictI18n; }
+    
     private void init() {
         if (isInitialized) {
             return;
@@ -91,6 +103,10 @@ public class ResourceLoader {
                 viewLoader = new ViewLoader(resourceExtractor, attrResourceLoader);
                 menuLoader = new MenuLoader(resourceExtractor, attrResourceLoader);
                 preferenceLoader = new PreferenceLoader(resourceExtractor);
+                
+                viewLoader.setStrictI18n(strictI18n);
+                menuLoader.setStrictI18n(strictI18n);
+                preferenceLoader.setStrictI18n(strictI18n);
 
                 File systemResourceDir = getSystemResourceDir(getPathToAndroidResources());
                 File localValueResourceDir = getValueResourceDir(resourceDir);
@@ -109,6 +125,8 @@ public class ResourceLoader {
                 menuLoader = null;
                 preferenceLoader = null;
             }
+        } catch(I18nException e) {
+        	throw e;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -332,7 +350,7 @@ public class ResourceLoader {
         init();
         return pluralResourceLoader.getValue(id, quantity);
     }
-
+    
     public boolean isDrawableXml(int resourceId) {
         init();
         return drawableResourceLoader.isXml(resourceId);
@@ -341,6 +359,45 @@ public class ResourceLoader {
     public int[] getDrawableIds(int resourceId) {
         init();
         return drawableResourceLoader.getDrawableIds(resourceId);
+    }
+    
+    public Drawable getXmlDrawable( int resourceId ) {
+    	return drawableResourceLoader.getXmlDrawable( resourceId );
+    }
+    
+    public Drawable getAnimDrawable( int resourceId ) {
+    	return getInnerRClassDrawable( resourceId, "$anim", AnimationDrawable.class );
+    }
+
+    public Drawable getColorDrawable( int resourceId ) {
+    	return getInnerRClassDrawable( resourceId, "$color", ColorDrawable.class );
+    }
+
+    @SuppressWarnings("rawtypes")
+	private Drawable getInnerRClassDrawable( int drawableResourceId, String suffix, Class returnClass ) {
+    	ShadowContextWrapper shadowApp = Robolectric.shadowOf( Robolectric.application );
+    	Class rClass = shadowApp.getResourceLoader().getLocalRClass();
+    	
+    	// Check to make sure there is actually an R Class, if not
+    	// return just a BitmapDrawable
+    	if( rClass == null ) { return null; }
+
+    	// Load the Inner Class for interrogation
+    	Class animClass = null;
+    	try {
+			animClass  = Class.forName( rClass.getCanonicalName() + suffix );
+		} catch (ClassNotFoundException e) {
+			return null;
+		}
+		
+		// Try to find the passed in resource ID
+		try {
+			for( Field field : animClass.getDeclaredFields() ) {
+				if( field.getInt( animClass ) == drawableResourceId )  { return (Drawable) returnClass.newInstance(); }
+			}			
+		} catch ( Exception e ) { }  
+		
+		return null;
     }
 
     public InputStream getRawValue(int id) {

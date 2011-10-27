@@ -45,6 +45,11 @@ public final class R {
 
         public static final int test_menu_1 = nextId++;
         public static final int test_menu_2 = nextId++;
+        public static final int test_menu_3 = nextId++;
+        
+        public static final int group_id_1 = nextId++;
+        
+        public static final int test_submenu_1 = nextId++;
     }
 
     public static final class string {
@@ -93,6 +98,7 @@ public final class R {
         public static final int l6_violet = nextId++;
         public static final int l7_white = nextId++;
         public static final int rainbow = nextId++;
+        public static final int state_drawable = nextId++;
     }
 
     public static final class layout {
@@ -112,6 +118,7 @@ public final class R {
 
     public static final class menu {
         public static final int test = nextId++;
+        public static final int test_withchilds = nextId++;
     }
 
     public static final class xml {

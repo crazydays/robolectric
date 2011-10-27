@@ -17,7 +17,21 @@ import static com.xtremelabs.robolectric.Robolectric.shadowOf;
 @SuppressWarnings({"UnusedDeclaration"})
 @Implements(Looper.class)
 public class ShadowLooper {
+    private static ThreadLocal<Looper> looperForThread = makeThreadLocalLoopers();
     private Scheduler scheduler = new Scheduler();
+
+    private static ThreadLocal<Looper> makeThreadLocalLoopers() {
+        return new ThreadLocal<Looper>() {
+            @Override
+            protected Looper initialValue() {
+                return Robolectric.Reflection.newInstanceOf(Looper.class);
+            }
+        };
+    }
+
+    public static void resetThreadLoopers() {
+        looperForThread = makeThreadLocalLoopers();
+    }
 
     @Implementation
     public static Looper getMainLooper() {
@@ -26,7 +40,7 @@ public class ShadowLooper {
 
     @Implementation
     public static Looper myLooper() {
-        return Robolectric.getShadowApplication().getCurrentLooper();
+        return looperForThread.get();
     }
 
     public static void pauseLooper(Looper looper) {
@@ -45,7 +59,7 @@ public class ShadowLooper {
         unPauseLooper(Looper.getMainLooper());
     }
 
-    public static void idleMainLooper(int interval) {
+    public static void idleMainLooper(long interval) {
         shadowOf(Looper.getMainLooper()).idle(interval);
     }
 
@@ -100,6 +114,10 @@ public class ShadowLooper {
      */
     public void post(Runnable runnable, long delayMillis) {
         scheduler.postDelayed(runnable, delayMillis);
+    }
+
+    public void postAtFrontOfQueue(Runnable runnable) {
+        scheduler.postAtFrontOfQueue(runnable);
     }
 
     public void pause() {

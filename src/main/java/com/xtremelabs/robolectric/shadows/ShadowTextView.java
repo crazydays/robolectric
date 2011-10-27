@@ -2,9 +2,12 @@ package com.xtremelabs.robolectric.shadows;
 
 import android.content.Context;
 import android.graphics.drawable.Drawable;
+import android.text.SpannableStringBuilder;
+import android.text.TextWatcher;
+import android.text.method.MovementMethod;
+import android.text.method.TransformationMethod;
 import android.text.style.URLSpan;
 import android.text.util.Linkify;
-import android.text.method.MovementMethod;
 import android.view.KeyEvent;
 import android.view.inputmethod.EditorInfo;
 import android.widget.TextView;
@@ -35,8 +38,11 @@ public class ShadowTextView extends ShadowView {
     private TextView.OnEditorActionListener onEditorActionListener;
     private int imeOptions = EditorInfo.IME_NULL;
     private int textAppearanceId;
+    private TransformationMethod transformationMethod;
     private int inputType;
 
+    private List<TextWatcher> watchers = new ArrayList<TextWatcher>();
+    
     @Override
     public void applyAttributes() {
         super.applyAttributes();
@@ -47,19 +53,50 @@ public class ShadowTextView extends ShadowView {
         applyCompoundDrawablesWithIntrinsicBoundsAttributes();
     }
 
-    @Implementation
+    @Implementation(i18nSafe=false)
     public void setText(CharSequence text) {
-        if (text == null) {
+    	sendBeforeTextChanged(text);
+    	
+    	if (text == null) {
             text = "";
         }
+    	
+    	CharSequence oldValue = this.text;
         this.text = text;
+        
+        sendOnTextChanged(oldValue);
+        sendAfterTextChanged();
     }
 
     @Implementation
     public void setText(int textResourceId) {
+    	sendBeforeTextChanged(text);
+    	
+    	CharSequence oldValue = this.text;
         this.text = getResources().getText(textResourceId);
+        
+    	sendOnTextChanged(oldValue);
+        sendAfterTextChanged();
     }
 
+    private void sendAfterTextChanged() {
+		for (TextWatcher watcher : watchers) {
+            watcher.afterTextChanged(new SpannableStringBuilder(getText()));
+        }
+	}
+
+	private void sendOnTextChanged(CharSequence oldValue) {
+		for (TextWatcher watcher : watchers) {
+    	    watcher.onTextChanged(text, 0, oldValue.length(), text.length());
+        }
+	}
+
+	private void sendBeforeTextChanged(CharSequence newValue) {
+		for (TextWatcher watcher : watchers) {
+    		watcher.beforeTextChanged(this.text, 0, this.text.length(), newValue.length());
+        }
+	}
+    
     @Implementation
     public CharSequence getText() {
         return text;
@@ -100,7 +137,7 @@ public class ShadowTextView extends ShadowView {
         this.hintText = getResources().getText(resId);
     }
 
-    @Implementation
+    @Implementation(i18nSafe=false)
     public final void setHint(CharSequence hintText) {
         this.hintText = hintText;
     }
@@ -338,6 +375,28 @@ public class ShadowTextView extends ShadowView {
         onEditorActionListener.onEditorAction((TextView) realView, imeAction, null);
     }
 
+    @Implementation
+    public void setTransformationMethod(TransformationMethod transformationMethod) {
+        this.transformationMethod = transformationMethod;
+    }
+
+    @Implementation
+    public TransformationMethod getTransformationMethod() {
+        return transformationMethod;
+    }
+
+    @Implementation
+    public void addTextChangedListener(TextWatcher watcher) {
+        this.watchers.add(watcher);
+    }
+    
+    /**
+     * @return the list of currently registered watchers/listeners
+     */
+    public List<TextWatcher> getWatchers() {
+        return watchers;
+    }
+    
     public static class CompoundDrawables {
         public int left;
         public int top;
